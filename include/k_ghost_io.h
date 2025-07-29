@@ -20,11 +20,11 @@ extern "C"
 /**
  * @brief Callback function type for handling specific interface requests.
  *
- * @param intput_data_p Pointer to the input data for the callback, in cJSON format.
+ * @param input_data_p Pointer to the input data for the callback, in cJSON format.
  *
  * @return int Returns 0 on success, or -1 on failure.
  */
-typedef int (*k_ghost_io_interface_callback_t)(cJSON *intput_data_p);
+typedef int (*k_ghost_io_interface_callback_t)(const cJSON *input_data_p);
 
 /**
  * @brief Callback function type for synchronizing the status of the system.
@@ -75,6 +75,12 @@ int k_ghost_io_init(void);
  */
 k_ghost_io_register_ret_code_t k_ghost_io_register_interface(const char *interface_name, k_ghost_io_interface_callback_t rest_cb,
 															 k_ghost_io_sync_status_t sync_cb);
+
+/**
+ * @brief Send the data payload to be sent via SSE to connected clients
+ * @param data Pointer to data to send in SSE data payload
+ */
+void k_ghost_io_send_event(const char *data);
 #ifdef __cplusplus
 }
 #endif

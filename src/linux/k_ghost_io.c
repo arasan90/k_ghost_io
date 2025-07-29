@@ -9,6 +9,7 @@
 
 #include <ctype.h>
 #include <netinet/in.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -122,6 +123,30 @@ k_ghost_io_register_ret_code_t k_ghost_io_register_interface(const char *interfa
 	return ret_code;
 }
 
+void k_ghost_io_send_event(const char *data)
+{
+	if (data)
+	{
+		k_ghost_io_sse_clients_list_t *current			= k_ghost_io_ctx.sse_clients;
+		const char					  *sse_event_header = "data: ";
+		const size_t				   needed_space		= strlen(sse_event_header) + strlen(data) + 5;	// +3 for \r\n\r\n\0
+		char						  *sse_data			= malloc(needed_space);
+		if (sse_data)
+		{
+			snprintf(sse_data, needed_space, "%s%s\r\n\r\n", sse_event_header, data);
+			while (current)
+			{
+				if (current->sse_client_fd > 0)
+				{
+					send(current->sse_client_fd, sse_data, strlen(sse_data), 0);
+				}
+				current = current->next_client;
+			}
+			free(sse_data);
+		}
+	}
+}
+
 void *k_ghost_io_thread_func(void *arg)
 {
 	k_ghost_io_ctx_t *ctx_p								 = (k_ghost_io_ctx_t *)arg;
@@ -200,7 +225,7 @@ void *k_ghost_io_thread_func(void *arg)
 	return NULL;
 }
 
-int k_ghost_io_add_sse_client(int sse_client_fd)
+int k_ghost_io_add_sse_client(const int sse_client_fd)
 {
 	int ret_code = -1;
 	if (sse_client_fd > 0)

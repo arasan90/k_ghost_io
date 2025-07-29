@@ -275,7 +275,7 @@ TEST_F(KGhostIOTest, KGhostIOManageUnknownRequest)
 
 TEST_F(KGhostIOTest, KGhostIORegisterCallbackSuccess)
 {
-	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
+	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](const cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
 	EXPECT_NE(k_ghost_io_ctx.interfaces, nullptr);
 	EXPECT_EQ(k_ghost_io_ctx.interfaces->next_cb, nullptr);
 	EXPECT_STREQ(k_ghost_io_ctx.interfaces->interface_name, "test_interface");
@@ -283,8 +283,8 @@ TEST_F(KGhostIOTest, KGhostIORegisterCallbackSuccess)
 
 TEST_F(KGhostIOTest, KGhostIORegisterCallbackAlreadyRegistered)
 {
-	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
-	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_ALREADY_REGISTERED);
+	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](const cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
+	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](const cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_ALREADY_REGISTERED);
 	EXPECT_NE(k_ghost_io_ctx.interfaces, nullptr);
 	EXPECT_EQ(k_ghost_io_ctx.interfaces->next_cb, nullptr);
 	EXPECT_STREQ(k_ghost_io_ctx.interfaces->interface_name, "test_interface");
@@ -292,7 +292,7 @@ TEST_F(KGhostIOTest, KGhostIORegisterCallbackAlreadyRegistered)
 
 TEST_F(KGhostIOTest, KGhostIORegisterCallbackNullInterfaceName)
 {
-	EXPECT_EQ(k_ghost_io_register_interface(nullptr, [](cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_ERROR);
+	EXPECT_EQ(k_ghost_io_register_interface(nullptr, [](const cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_ERROR);
 	EXPECT_EQ(k_ghost_io_ctx.interfaces, nullptr);
 }
 
@@ -304,7 +304,7 @@ TEST_F(KGhostIOTest, KGhostIORegisterCallbackNullCallback)
 
 TEST_F(KGhostIOTest, KGhostIORegisterCallbackNullSyncCallback)
 {
-	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](cJSON *) { return 0; }, nullptr), K_GHOST_REGISTER_RET_CODE_OK);
+	EXPECT_EQ(k_ghost_io_register_interface("test_interface", [](const cJSON *) { return 0; }, nullptr), K_GHOST_REGISTER_RET_CODE_OK);
 	EXPECT_NE(k_ghost_io_ctx.interfaces, nullptr);
 	EXPECT_EQ(k_ghost_io_ctx.interfaces->next_cb, nullptr);
 	EXPECT_STREQ(k_ghost_io_ctx.interfaces->interface_name, "test_interface");
@@ -312,8 +312,8 @@ TEST_F(KGhostIOTest, KGhostIORegisterCallbackNullSyncCallback)
 
 TEST_F(KGhostIOTest, KGhostIORegisterCallbackMultipleSuccess)
 {
-	EXPECT_EQ(k_ghost_io_register_interface("test_interface1", [](cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
-	EXPECT_EQ(k_ghost_io_register_interface("test_interface2", [](cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
+	EXPECT_EQ(k_ghost_io_register_interface("test_interface1", [](const cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
+	EXPECT_EQ(k_ghost_io_register_interface("test_interface2", [](const cJSON *) { return 0; }, []() {}), K_GHOST_REGISTER_RET_CODE_OK);
 	EXPECT_NE(k_ghost_io_ctx.interfaces, nullptr);
 	EXPECT_NE(k_ghost_io_ctx.interfaces->next_cb, nullptr);
 	EXPECT_EQ(((k_ghost_io_interface_t *)k_ghost_io_ctx.interfaces->next_cb)->next_cb, nullptr);
@@ -333,7 +333,7 @@ TEST_F(KGhostIOTest, KGhostIOCallRestCBForRegisteredInterface)
 	static int cbCalled = 0;
 	k_ghost_io_register_interface(
 		"test_interface",
-		[](cJSON *input)
+		[](const cJSON *input)
 		{
 			cbCalled++;
 			return 0;
@@ -346,6 +346,80 @@ TEST_F(KGhostIOTest, KGhostIOCallRestCBForRegisteredInterface)
 	EXPECT_STREQ((char *)send_fake.arg1_val, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
 	EXPECT_EQ(send_fake.arg2_val, strlen("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
 	EXPECT_EQ(cbCalled, 1);
+}
+
+TEST_F(KGhostIOTest, KGhostIOCallRestCBForRegisteredInterfaceInternalError)
+{
+	std::string request =
+		"POST /api/system/manage HTTP/1.1\r\n"
+		"Host: localhost\r\n"
+		"Content-Type: application/json\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+		"{\"interface\": \"test_interface\"}";
+	static int cbCalled = 0;
+	k_ghost_io_register_interface(
+		"test_interface",
+		[](const cJSON *input)
+		{
+			return -1;
+		},
+		[]() {});
+	k_ghost_io_manage_rest_request(5, request.c_str());
+	EXPECT_EQ(send_fake.call_count, 1);
+	EXPECT_EQ(close_fake.call_count, 1);
+	EXPECT_EQ(send_fake.arg0_val, 5);
+	EXPECT_STREQ((char *)send_fake.arg1_val, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
+	EXPECT_EQ(send_fake.arg2_val, strlen("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"));
+}
+
+TEST_F(KGhostIOTest, KGhostIOCallRestCBForMultipleRegisteredInterface)
+{
+	std::string request1 =
+		"POST /api/system/manage HTTP/1.1\r\n"
+		"Host: localhost\r\n"
+		"Content-Type: application/json\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+		"{\"interface\": \"test_interface\"}";
+	std::string request2 =
+		"POST /api/system/manage HTTP/1.1\r\n"
+		"Host: localhost\r\n"
+		"Content-Type: application/json\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+		"{\"interface\": \"test_interface\"}";
+	static int cbCalled = 0;
+	k_ghost_io_register_interface(
+		"test_interface",
+		[](const cJSON *input)
+		{
+			cbCalled++;
+			return 0;
+		},
+		[]() {});
+	k_ghost_io_register_interface(
+		"test_interface2",
+		[](const cJSON *input)
+		{
+			cbCalled++;
+			return 0;
+		},
+		[]() {});
+	k_ghost_io_manage_rest_request(5, request1.c_str());
+	EXPECT_EQ(send_fake.call_count, 1);
+	EXPECT_EQ(close_fake.call_count, 1);
+	EXPECT_EQ(send_fake.arg0_val, 5);
+	EXPECT_STREQ((char *)send_fake.arg1_val, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+	EXPECT_EQ(send_fake.arg2_val, strlen("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
+	EXPECT_EQ(cbCalled, 1);
+	k_ghost_io_manage_rest_request(5, request1.c_str());
+	EXPECT_EQ(send_fake.call_count, 2);
+	EXPECT_EQ(close_fake.call_count, 2);
+	EXPECT_EQ(send_fake.arg0_val, 5);
+	EXPECT_STREQ((char *)send_fake.arg1_val, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+	EXPECT_EQ(send_fake.arg2_val, strlen("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
+	EXPECT_EQ(cbCalled, 2);
 }
 
 TEST_F(KGhostIOTest, KGhostIOCallRestCBForUnknownInterface)
@@ -381,6 +455,21 @@ TEST_F(KGhostIOTest, KGhostIOCallRestCBForInvalidRequest)
 	EXPECT_EQ(send_fake.arg2_val, strlen("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"));
 }
 
+TEST_F(KGhostIOTest, KGhostIOCallRestCBForMissingBodyRequest)
+{
+	std::string request =
+		"POST /api/system/manage HTTP/1.1\r\n"
+		"Host: localhost\r\n"
+		"Content-Type: application/json\r\n"
+		"Content-Length: 0";
+	k_ghost_io_manage_rest_request(5, request.c_str());
+	EXPECT_EQ(send_fake.call_count, 1);
+	EXPECT_EQ(close_fake.call_count, 1);
+	EXPECT_EQ(send_fake.arg0_val, 5);
+	EXPECT_STREQ((char *)send_fake.arg1_val, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n");
+	EXPECT_EQ(send_fake.arg2_val, strlen("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"));
+}
+
 TEST_F(KGhostIOTest, KGhostIOCallRestCBForNullRequest)
 {
 	k_ghost_io_manage_rest_request(5, nullptr);
@@ -394,8 +483,42 @@ TEST_F(KGhostIOTest, KGhostIOCallRestCBForNullRequest)
 TEST_F(KGhostIOTest, KGhostIOCallSyncCb)
 {
 	static int syncCbCalled = 0;
-	k_ghost_io_register_interface("test_interface", [](cJSON *input) { return 0; }, []() { syncCbCalled++; });
+	k_ghost_io_register_interface("test_interface", [](const cJSON *input) { return 0; }, []() { syncCbCalled++; });
 	EXPECT_EQ(syncCbCalled, 0);
 	k_ghost_io_add_sse_client(5);
 	EXPECT_EQ(syncCbCalled, 1);
+	k_ghost_io_remove_sse_client(5);
+}
+
+TEST_F(KGhostIOTest, KGhostIOCallSendEventNoSSEClients)
+{
+	k_ghost_io_send_event("test");
+	EXPECT_EQ(send_fake.call_count, 0);
+}
+
+TEST_F(KGhostIOTest, KGhostIOCallSendEventOneSSEClient)
+{
+	k_ghost_io_add_sse_client(5);
+	k_ghost_io_send_event("test");
+	EXPECT_EQ(send_fake.call_count, 2);
+	EXPECT_EQ(send_fake.arg0_val, 5);
+	EXPECT_EQ(send_fake.arg2_val, strlen("data: test\r\n\r\n"));
+	k_ghost_io_remove_sse_client(5);
+}
+
+TEST_F(KGhostIOTest, KGhostIOCallSendEventMultipleSSEClients)
+{
+	k_ghost_io_add_sse_client(5);
+	k_ghost_io_add_sse_client(6);
+	k_ghost_io_add_sse_client(7);
+	k_ghost_io_send_event("test");
+	EXPECT_EQ(send_fake.call_count, 6);
+	EXPECT_EQ(send_fake.arg0_history[3], 7);
+	EXPECT_EQ(send_fake.arg0_history[4], 6);
+	EXPECT_EQ(send_fake.arg0_history[5], 5);
+	EXPECT_EQ(send_fake.arg2_val, strlen("data: test\r\n\r\n"));
+	k_ghost_io_remove_sse_client(5);
+	k_ghost_io_remove_sse_client(6);
+	k_ghost_io_remove_sse_client(7);
+
 }

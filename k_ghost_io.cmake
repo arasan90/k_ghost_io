@@ -13,10 +13,10 @@ set(private_includes
     )
 
 set(public_linked_libs
+    k_cjson
     )
 
 set(private_linked_libs
-    k_cjson
 )
 
 
@@ -54,6 +54,7 @@ function (k_ghost_io_create_mock_library)
     add_library(k_ghost_io_mock ${CMAKE_CURRENT_LIST_DIR}/mock/k_ghost_io_mock.c)
     target_include_directories(k_ghost_io_mock PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
     target_include_directories(k_ghost_io_mock PRIVATE ${CMAKE_CURRENT_LIST_DIR}/mock)
+    target_link_libraries(k_ghost_io_mock PUBLIC k_cjson)
 endfunction()
 
 function(k_ghost_io_create_dep_libraries)
