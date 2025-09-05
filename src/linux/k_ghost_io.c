@@ -91,7 +91,7 @@ int k_ghost_io_init(void)
 }
 
 k_ghost_io_register_ret_code_t k_ghost_io_register_interface(const char *interface_name, k_ghost_io_interface_callback_t rest_cb,
-															 k_ghost_io_sync_status_t sync_cb)
+															 k_ghost_io_sync_status_t sync_cb, void *user_data_p)
 {
 	k_ghost_io_register_ret_code_t ret_code = K_GHOST_REGISTER_RET_CODE_ERROR;
 	if (interface_name && rest_cb)
@@ -114,6 +114,7 @@ k_ghost_io_register_ret_code_t k_ghost_io_register_interface(const char *interfa
 				new_interface->interface_name = strdup(interface_name);
 				new_interface->rest_cb		  = rest_cb;
 				new_interface->sync_cb		  = sync_cb;
+				new_interface->user_data_p	  = user_data_p;
 				new_interface->next_cb		  = k_ghost_io_ctx.interfaces;
 				k_ghost_io_ctx.interfaces	  = new_interface;
 				ret_code					  = K_GHOST_REGISTER_RET_CODE_OK;
@@ -315,7 +316,7 @@ void k_ghost_io_manage_rest_request(int client_fd, const char *request)
 						if (0 == strcmp(interface_p->interface_name, interface))
 						{
 							interface_found = 1;
-							int ret_code	= interface_p->rest_cb(json_request);
+							int ret_code	= interface_p->rest_cb(json_request, interface_p->user_data_p);
 							if (0 == ret_code)
 							{
 								const char *resp = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
