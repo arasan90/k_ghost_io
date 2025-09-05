@@ -124,6 +124,32 @@ k_ghost_io_register_ret_code_t k_ghost_io_register_interface(const char *interfa
 	return ret_code;
 }
 
+void k_ghost_io_unregister_interface(const char *interface_name)
+{
+	k_ghost_io_interface_t *previous_interface_p = NULL;
+	k_ghost_io_interface_t *current_interface_p	 = k_ghost_io_ctx.interfaces;
+	while (current_interface_p)
+	{
+		if (0 == strcmp(current_interface_p->interface_name, interface_name))
+		{
+			if (previous_interface_p)
+			{
+				previous_interface_p->next_cb = current_interface_p->next_cb;
+			}
+			else
+			{
+				/* We need to remove the head of the list */
+				k_ghost_io_ctx.interfaces = current_interface_p->next_cb;
+			}
+			free(current_interface_p->interface_name);
+			free(current_interface_p);
+			break;
+		}
+		previous_interface_p = current_interface_p;
+		current_interface_p	 = (k_ghost_io_interface_t *)current_interface_p->next_cb;
+	}
+}
+
 void k_ghost_io_send_event(const char *data)
 {
 	if (data)

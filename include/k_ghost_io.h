@@ -80,6 +80,13 @@ k_ghost_io_register_ret_code_t k_ghost_io_register_interface(const char *interfa
 															 k_ghost_io_sync_status_t sync_cb, void *user_data_p);
 
 /**
+ * @brief Unregisters an interface from the ghost IO system.
+ *
+ * @param interface_name Pointer to a string representing the name of the interface to be unregistered.
+ */
+void k_ghost_io_unregister_interface(const char *interface_name);
+
+/**
  * @brief Send the data payload to be sent via SSE to connected clients
  * @param data Pointer to data to send in SSE data payload
  */

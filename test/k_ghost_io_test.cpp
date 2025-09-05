@@ -558,3 +558,80 @@ TEST_F(KGhostIOTest, KGhostIORegisterCallbackWithUserParam)
 	EXPECT_EQ(cbCalled, 1);
 	EXPECT_EQ(user_param.value, 1);
 }
+
+TEST_F(KGhostIOTest, KGhostIOUnregisterFirstInterface)
+{
+	k_ghost_io_register_interface("test_interface_1", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_2", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_3", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	const k_ghost_io_interface_t *interface = k_ghost_io_ctx.interfaces;
+	EXPECT_STREQ(interface->interface_name, "test_interface_3");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_2");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_1");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_EQ(interface, nullptr);
+	k_ghost_io_unregister_interface("test_interface_3");
+	interface = k_ghost_io_ctx.interfaces;
+	EXPECT_STREQ(interface->interface_name, "test_interface_2");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_1");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_EQ(interface, nullptr);
+}
+
+TEST_F(KGhostIOTest, KGhostIOUnregisterMiddleInterface)
+{
+	k_ghost_io_register_interface("test_interface_1", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_2", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_3", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	const k_ghost_io_interface_t *interface = k_ghost_io_ctx.interfaces;
+	EXPECT_STREQ(interface->interface_name, "test_interface_3");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_2");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_1");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_EQ(interface, nullptr);
+	k_ghost_io_unregister_interface("test_interface_2");
+	interface = k_ghost_io_ctx.interfaces;
+	EXPECT_STREQ(interface->interface_name, "test_interface_3");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_1");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_EQ(interface, nullptr);
+}
+
+TEST_F(KGhostIOTest, KGhostIOUnregisterLastInterface)
+{
+	k_ghost_io_register_interface("test_interface_1", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_2", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_3", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	const k_ghost_io_interface_t *interface = k_ghost_io_ctx.interfaces;
+	EXPECT_STREQ(interface->interface_name, "test_interface_3");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_2");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_1");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_EQ(interface, nullptr);
+	k_ghost_io_unregister_interface("test_interface_1");
+	interface = k_ghost_io_ctx.interfaces;
+	EXPECT_STREQ(interface->interface_name, "test_interface_3");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_STREQ(interface->interface_name, "test_interface_2");
+	interface = static_cast<k_ghost_io_interface_t *>(interface->next_cb);
+	EXPECT_EQ(interface, nullptr);
+}
+
+TEST(UnregisterInterface, UnregisterAllInterfaces)
+{
+	k_ghost_io_register_interface("test_interface_1", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_2", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_register_interface("test_interface_3", [](const cJSON *, void *user_data_p) { return 0; }, []() {}, nullptr);
+	k_ghost_io_unregister_interface("test_interface_1");
+	k_ghost_io_unregister_interface("test_interface_2");
+	k_ghost_io_unregister_interface("test_interface_3");
+	EXPECT_EQ(k_ghost_io_ctx.interfaces, nullptr);
+}
