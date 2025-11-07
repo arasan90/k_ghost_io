@@ -9,7 +9,7 @@ set(public_includes
 )
 
 set(private_includes
-    ${CMAKE_CURRENT_LIST_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}/src/${TARGET_PLATFORM}
 )
 
 set(public_linked_libs
